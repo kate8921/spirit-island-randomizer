@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spirit Island ランダマイザー</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: #fffaf2;
+      --line: #d9ccb8;
+      --text: #2f2419;
+      --accent: #7a4f2a;
+      --accent2: #4d7a5a;
+      --soft: #efe4d2;
+      --warn: #8a2f2f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+    .wrap { max-width: 1000px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    .sub { margin-bottom: 18px; color: #5e4c39; line-height: 1.6; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .grid-tight {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+    label.title { display: block; font-weight: 700; margin-bottom: 6px; }
+    select, input[type="number"], button {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      font-size: 15px;
+      background: white;
+    }
+    .section-title { font-weight: 700; margin-top: 18px; margin-bottom: 8px; }
+    .check-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+    }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 180px;
+    }
+    .check-item input { width: auto; transform: scale(1.1); }
+    .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      background: var(--accent);
+      color: white;
+      border: none;
+    }
+    button.secondary { background: var(--accent2); }
+    .result { line-height: 1.8; font-size: 18px; }
+    .result-block {
+      background: var(--soft);
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+    .mini {
+      font-size: 13px;
+      color: #6a5848;
+      line-height: 1.6;
+      margin-top: 12px;
+    }
+    .warn { color: var(--warn); font-weight: 700; margin-top: 10px; }
+    .pill {
+      display: inline-block;
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 999px;
+      padding: 2px 10px;
+      margin-right: 6px;
+      margin-top: 6px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Spirit Island ランダマイザー</h1>
+    <div class="sub">
+      精霊・敵対国・国家レベル・シナリオをまとめて抽選できます。<br>
+      難易度判定は <strong>A: 国家のみ</strong> と <strong>B: 国家＋シナリオ合計</strong> を切り替えできます。
+    </div>
+
+    <div class="panel">
+      <div class="grid">
+        <div>
+          <label class="title" for="spiritCount">精霊数</label>
+          <select id="spiritCount">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="title" for="difficultyMode">難易度の指定方法</label>
+          <select id="difficultyMode" onchange="toggleDifficultyInputs()">
+            <option value="exact">ちょうどこの難易度</option>
+            <option value="range">この範囲の難易度</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="title" for="judgeMode">難易度判定</label>
+          <select id="judgeMode">
+            <option value="adversaryOnly">A: 国家のみ</option>
+            <option value="combined">B: 国家＋シナリオ合計</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="title" for="scenarioMode">シナリオ設定</label>
+          <select id="scenarioMode">
+            <option value="withNone">シナリオなしも含む</option>
+            <option value="onlyScenario">必ずシナリオあり</option>
+            <option value="noScenario">シナリオなし固定</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-tight">
+        <div id="exactWrap">
+          <label class="title" for="exactDifficulty">目標難易度</label>
+          <input id="exactDifficulty" type="number" min="0" max="20" value="7" />
+        </div>
+        <div id="rangeMinWrap" style="display:none;">
+          <label class="title" for="minDifficulty">最小難易度</label>
+          <input id="minDifficulty" type="number" min="0" max="20" value="6" />
+        </div>
+        <div id="rangeMaxWrap" style="display:none;">
+          <label class="title" for="maxDifficulty">最大難易度</label>
+          <input id="maxDifficulty" type="number" min="0" max="20" value="8" />
+        </div>
+      </div>
+
+      <div class="section-title">使用する精霊セット</div>
+      <div class="check-group">
+        <label class="check-item"><input type="checkbox" class="spiritSet" value="base" checked /> 基本セット</label>
+        <label class="check-item"><input type="checkbox" class="spiritSet" value="branch" checked /> 枝と鉤爪</label>
+        <label class="check-item"><input type="checkbox" class="spiritSet" value="jagged" checked /> ひび割れた大地</label>
+        <label class="check-item"><input type="checkbox" class="spiritSet" value="nature" checked /> 自然の化身</label>
+        <label class="check-item"><input type="checkbox" class="spiritSet" value="feather" checked /> 羽根と炎</label>
+        <label class="check-item"><input type="checkbox" class="spiritSet" value="horizons" checked /> ホライズン</label>
+      </div>
+
+      <div class="section-title">使用する敵対国</div>
+      <div class="check-group">
+        <label class="check-item"><input type="checkbox" class="advPick" value="ブランデンブルク＝プロイセン" checked /> ブランデンブルク＝プロイセン</label>
+        <label class="check-item"><input type="checkbox" class="advPick" value="スウェーデン" checked /> スウェーデン</label>
+        <label class="check-item"><input type="checkbox" class="advPick" value="イングランド" checked /> イングランド</label>
+        <label class="check-item"><input type="checkbox" class="advPick" value="フランス" checked /> フランス</label>
+        <label class="check-item"><input type="checkbox" class="advPick" value="ハプスブルク" checked /> ハプスブルク</label>
+        <label class="check-item"><input type="checkbox" class="advPick" value="ハプスブルク朝の採掘遠征隊" checked /> ハプスブルク朝の採掘遠征隊</label>
+        <label class="check-item"><input type="checkbox" class="advPick" value="ロシア" checked /> ロシア</label>
+        <label class="check-item"><input type="checkbox" class="advPick" value="スコットランド" checked /> スコットランド</label>
+      </div>
+      <div class="btns">
+        <button class="secondary" onclick="toggleAll('.advPick', true)">国家全部ON</button>
+        <button class="secondary" onclick="toggleAll('.advPick', false)">国家全部OFF</button>
+      </div>
+
+      <div class="btns">
+        <button onclick="rollAll()">ランダム生成</button>
+        <button class="secondary" onclick="toggleAll('.spiritSet', true)">精霊セット全部ON</button>
+        <button class="secondary" onclick="toggleAll('.spiritSet', false)">精霊セット全部OFF</button>
+      </div>
+
+      <div class="mini">
+        ※ 国家難易度は、国家シートのレベル横の（）にある難易度値を基準にしています。<br>
+        ※ シナリオ難易度は仮設定です。手元の表に合わせてあとで差し替え可能です。<br>
+        ※ 精霊名は日本語版表記と完全一致しない箇所があるかもしれないので、必要ならそこも直せます。
+      </div>
+    </div>
+
+    <div class="panel result">
+      <div><strong>抽選結果</strong></div>
+      <div id="result" class="result-block">まだ抽選していません。</div>
+      <div id="warning" class="warn"></div>
+    </div>
+  </div>
+
+  <script>
+    const spiritSets = {
+      base: [
+        "稲妻の如き一撃",
+        "炎のごとく揺らめく影",
+        "夢と悪夢の運び手",
+        "大海の飢えた一飲み",
+        "陽光を浴びた大河のうねり",
+        "生い茂った緑の広がり",
+        "雷と話す者",
+        "生命に満ちた大地の力"
+      ],
+      branch: [
+        "葉陰に潜む鋭い牙",
+        "禁断の大自然の番人"
+      ],
+      jagged: [
+        "石の不動なる守護者",
+        "土を食らうもの",
+        "万象の引き裂く爪",
+        "届かぬ声",
+        "静かなる霧",
+        "心を攫うもの",
+        "復讐の燃えさし",
+        "漆黒の沼より出づる悪夢"
+      ],
+      nature: [
+        "残り火の瞳の巨獣",
+        "そびえ立つ密林の根",
+        "暖炉の不寝番",
+        "狂乱を泣き叫び彷徨う声",
+        "太陽の容赦なき視線",
+        "傷ついた水の流れ",
+        "背筋を走る闇の息吹",
+        "踊り狂う地震"
+      ],
+      feather: [
+        "野火の心臓",
+        "島の真下でまどろむ蛇",
+        "世界を水浸しにする豪雨",
+        "見知らぬ道を見つける者"
+      ],
+      horizons: [
+        "地底に潜む飢えた牙",
+        "陽光に輝く旋風",
+        "森の中から見張る目",
+        "石と砂を焦がす熱波",
+        "底なし沼の泥"
+      ]
+    };
+
+    const adversarySets = {
+      base: [
+        {
+          name: "ブランデンブルク＝プロイセン",
+          levels: [
+            { level: 0, difficulty: 1 },
+            { level: 1, difficulty: 2 },
+            { level: 2, difficulty: 4 },
+            { level: 3, difficulty: 6 },
+            { level: 4, difficulty: 7 },
+            { level: 5, difficulty: 9 },
+            { level: 6, difficulty: 10 }
+          ]
+        },
+        {
+          name: "スウェーデン",
+          levels: [
+            { level: 0, difficulty: 1 },
+            { level: 1, difficulty: 2 },
+            { level: 2, difficulty: 3 },
+            { level: 3, difficulty: 5 },
+            { level: 4, difficulty: 6 },
+            { level: 5, difficulty: 7 },
+            { level: 6, difficulty: 8 }
+          ]
+        },
+        {
+          name: "イングランド",
+          levels: [
+            { level: 0, difficulty: 1 },
+            { level: 1, difficulty: 3 },
+            { level: 2, difficulty: 4 },
+            { level: 3, difficulty: 6 },
+            { level: 4, difficulty: 7 },
+            { level: 5, difficulty: 9 },
+            { level: 6, difficulty: 10 }
+          ]
+        },
+        {
+          name: "フランス",
+          levels: [
+            { level: 0, difficulty: 2 },
+            { level: 1, difficulty: 3 },
+            { level: 2, difficulty: 5 },
+            { level: 3, difficulty: 7 },
+            { level: 4, difficulty: 8 },
+            { level: 5, difficulty: 9 },
+            { level: 6, difficulty: 10 }
+          ]
+        }
+      ],
+      jagged: [
+        {
+          name: "ハプスブルク",
+          levels: [
+            { level: 0, difficulty: 2 },
+            { level: 1, difficulty: 3 },
+            { level: 2, difficulty: 5 },
+            { level: 3, difficulty: 6 },
+            { level: 4, difficulty: 8 },
+            { level: 5, difficulty: 9 },
+            { level: 6, difficulty: 10 }
+          ]
+        },
+        {
+          name: "ハプスブルク朝の採掘遠征隊",
+          levels: [
+            { level: 0, difficulty: 1 },
+            { level: 1, difficulty: 3 },
+            { level: 2, difficulty: 4 },
+            { level: 3, difficulty: 5 },
+            { level: 4, difficulty: 7 },
+            { level: 5, difficulty: 9 },
+            { level: 6, difficulty: 10 }
+          ]
+        },
+        {
+          name: "ロシア",
+          levels: [
+            { level: 0, difficulty: 1 },
+            { level: 1, difficulty: 2 },
+            { level: 2, difficulty: 3 },
+            { level: 3, difficulty: 5 },
+            { level: 4, difficulty: 7 },
+            { level: 5, difficulty: 9 },
+            { level: 6, difficulty: 11 }
+          ]
+        },
+        {
+          name: "スコットランド",
+          levels: [
+            { level: 0, difficulty: 1 },
+            { level: 1, difficulty: 3 },
+            { level: 2, difficulty: 4 },
+            { level: 3, difficulty: 6 },
+            { level: 4, difficulty: 7 },
+            { level: 5, difficulty: 8 },
+            { level: 6, difficulty: 10 }
+          ]
+        }
+      ]
+    };
+
+    const scenarios = [
+      { name: "なし", difficulty: 0 },
+      { name: "急襲", difficulty: 0 },
+      { name: "島中心部の防衛", difficulty: 0 },
+      { name: "恐怖の儀式", difficulty: 3 },
+      { name: "ダハンの暴動", difficulty: 4 },
+      { name: "多様な精霊", difficulty: 0 },
+      { name: "紐解かれた運命", difficulty: 1 },
+      { name: "植民地化の急騰", difficulty: 2 },
+      { name: "変化に富んだ地形", difficulty: 2 }
+    ];
+
+    function toggleDifficultyInputs() {
+      const mode = document.getElementById('difficultyMode').value;
+      document.getElementById('exactWrap').style.display = mode === 'exact' ? 'block' : 'none';
+      document.getElementById('rangeMinWrap').style.display = mode === 'range' ? 'block' : 'none';
+      document.getElementById('rangeMaxWrap').style.display = mode === 'range' ? 'block' : 'none';
+    }
+
+    function toggleAll(selector, checked) {
+      document.querySelectorAll(selector).forEach(el => el.checked = checked);
+    }
+
+    function sample(arr, count) {
+      const pool = [...arr];
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      return pool.slice(0, count);
+    }
+
+    function getCheckedValues(selector) {
+      return [...document.querySelectorAll(selector)]
+        .filter(el => el.checked)
+        .map(el => el.value);
+    }
+
+    function inTarget(value) {
+      const mode = document.getElementById('difficultyMode').value;
+      if (mode === 'exact') {
+        const exact = Number(document.getElementById('exactDifficulty').value);
+        return value === exact;
+      }
+      const min = Number(document.getElementById('minDifficulty').value);
+      const max = Number(document.getElementById('maxDifficulty').value);
+      return value >= Math.min(min, max) && value <= Math.max(min, max);
+    }
+
+    function getAvailableSpirits() {
+      const selectedSets = getCheckedValues('.spiritSet');
+      let list = [];
+      selectedSets.forEach(key => {
+        list = list.concat(spiritSets[key] || []);
+      });
+      return [...new Set(list)];
+    }
+
+    function getAvailableAdversaries() {
+      const selectedNames = getCheckedValues('.advPick');
+      let list = [];
+      Object.values(adversarySets).forEach(group => {
+        group.forEach(adv => {
+          if (selectedNames.includes(adv.name)) {
+            list.push(adv);
+          }
+        });
+      });
+      return list;
+    }
+
+    function getAllowedScenarios() {
+      const mode = document.getElementById('scenarioMode').value;
+      if (mode === 'noScenario') return scenarios.filter(s => s.difficulty === 0);
+      if (mode === 'onlyScenario') return scenarios.filter(s => s.difficulty > 0);
+      return scenarios;
+    }
+
+    function buildCandidates() {
+      const judgeMode = document.getElementById('judgeMode').value;
+      const adversaries = getAvailableAdversaries();
+      const allowedScenarios = getAllowedScenarios();
+      const candidates = [];
+
+      adversaries.forEach(adv => {
+        adv.levels.forEach(lv => {
+          allowedScenarios.forEach(sc => {
+            const total = judgeMode === 'adversaryOnly' ? lv.difficulty : lv.difficulty + sc.difficulty;
+            if (inTarget(total)) {
+              candidates.push({
+                adversary: adv.name,
+                level: lv.level,
+                adversaryDifficulty: lv.difficulty,
+                scenario: sc.name,
+                scenarioDifficulty: sc.difficulty,
+                totalDifficulty: total
+              });
+            }
+          });
+        });
+      });
+
+      return candidates;
+    }
+
+    function saveSettings() {
+      const data = {
+        spiritSets: getCheckedValues('.spiritSet'),
+        adversaries: getCheckedValues('.advPick'),
+        difficultyMode: document.getElementById('difficultyMode').value,
+        judgeMode: document.getElementById('judgeMode').value,
+        scenarioMode: document.getElementById('scenarioMode').value,
+        exact: document.getElementById('exactDifficulty').value,
+        min: document.getElementById('minDifficulty').value,
+        max: document.getElementById('maxDifficulty').value,
+        spiritCount: document.getElementById('spiritCount').value
+      };
+      localStorage.setItem('spiritIslandSettings', JSON.stringify(data));
+    }
+
+    function loadSettings() {
+      const saved = localStorage.getItem('spiritIslandSettings');
+      if (!saved) return;
+
+      const data = JSON.parse(saved);
+
+      document.querySelectorAll('.spiritSet').forEach(el => {
+        el.checked = data.spiritSets?.includes(el.value);
+      });
+
+      document.querySelectorAll('.advPick').forEach(el => {
+        el.checked = data.adversaries?.includes(el.value);
+      });
+
+      if (data.difficultyMode) document.getElementById('difficultyMode').value = data.difficultyMode;
+      if (data.judgeMode) document.getElementById('judgeMode').value = data.judgeMode;
+      if (data.scenarioMode) document.getElementById('scenarioMode').value = data.scenarioMode;
+      if (data.exact) document.getElementById('exactDifficulty').value = data.exact;
+      if (data.min) document.getElementById('minDifficulty').value = data.min;
+      if (data.max) document.getElementById('maxDifficulty').value = data.max;
+      if (data.spiritCount) document.getElementById('spiritCount').value = data.spiritCount;
+
+      toggleDifficultyInputs();
+    loadSettings();
+    }
+
+    function rollAll() {
+      saveSettings();
+      const result = document.getElementById('result');
+      const warning = document.getElementById('warning');
+      warning.textContent = '';
+
+      const spiritCount = Number(document.getElementById('spiritCount').value);
+      const spirits = getAvailableSpirits();
+      const candidates = buildCandidates();
+
+      if (spirits.length === 0) {
+        result.innerHTML = '精霊セットが1つも選ばれていません。';
+        warning.textContent = '精霊セットにチェックを入れてください。';
+        return;
+      }
+
+      if (spirits.length < spiritCount) {
+        result.innerHTML = '選択中の精霊セットでは、指定人数分の精霊が足りません。';
+        warning.textContent = '精霊数を減らすか、精霊セットを増やしてください。';
+        return;
+      }
+
+      if (candidates.length === 0) {
+        result.innerHTML = '条件に合う国家＋レベル＋シナリオの組み合わせが見つかりませんでした。';
+        warning.textContent = '難易度やシナリオ条件を少し広げてみてください。';
+        return;
+      }
+
+      const pickedSpirits = sample(spirits, spiritCount);
+      const picked = sample(candidates, 1)[0];
+      const judgeMode = document.getElementById('judgeMode').value;
+      const judgeLabel = judgeMode === 'adversaryOnly' ? '国家のみ' : '国家＋シナリオ合計';
+
+      result.innerHTML = `
+        <div><strong>精霊</strong></div>
+        <div>${pickedSpirits.map(s => `<span class="pill">${s}</span>`).join('')}</div>
+        <br>
+        <div><strong>敵対国</strong></div>
+        <div>${picked.adversary} レベル${picked.level}</div>
+        <div>国家難易度: ${picked.adversaryDifficulty}</div>
+        <br>
+        <div><strong>シナリオ</strong></div>
+        <div>${picked.scenario}</div>
+        <div>シナリオ難易度: ${picked.scenarioDifficulty}</div>
+        <br>
+        <div><strong>判定結果</strong></div>
+        <div>判定モード: ${judgeLabel}</div>
+        <div>最終的に条件に合った難易度: ${picked.totalDifficulty}</div>
+      `;
+    }
+window.onload = function () {
+  toggleDifficultyInputs();
+  loadSettings();
+};
+    toggleDifficultyInputs();
+  </script>
+</body>
+</html>
